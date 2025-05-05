@@ -1,158 +1,104 @@
 "use client"
 
-import Link from "next/link"
+import * as React from "react"
+import { useEffect, useState } from "react"
 import {
   BarChart3,
-  Database,
-  Home,
-  Layers,
-  LayoutDashboard,
-  MessageSquare,
-  PlusCircle,
-  Settings,
   Users,
+  FileText,
+  Link,
+  Settings,
+  LayoutDashboard,
 } from "lucide-react"
+
+import { NavMain } from "@/components/nav-main"
+import { NavSecondary } from "@/components/nav-secondary"
+import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 
-export default function AppSidebar() {
+const navItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: FileText,
+  },
+  {
+    title: "Team",
+    url: "/team",
+    icon: Users,
+  },
+  {
+    title: "Integrations",
+    url: "/integrations",
+    icon: Link,
+  },
+]
+
+const secondaryItems = [
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+  },
+]
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [userDetails, setUserDetails] = useState({
+    name: "Loading...",
+    email: "",
+    avatar: "/images/avatars/default.png",
+  })
+  
+  useEffect(() => {
+    async function loadUser() {
+      
+        setUserDetails({
+          name: "Sam Lamba",
+          email: "sam@lumari.io",
+          avatar: "/images/avatars/default.png",
+        })
+    }
+    
+    loadUser()
+  }, [])
+
   return (
-    <Sidebar>
-      <SidebarHeader className="flex items-center px-4 py-2">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="rounded-md bg-primary p-1">
-            <Layers className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-xl">AppGen</span>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/">
-                    <Home />
-                    <span>Home</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/apps">
-                    <LayoutDashboard />
-                    <span>My Applications</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/generate">
-                    <PlusCircle />
-                    <span>Create New</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Templates</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/templates/gtm-dashboard">
-                    <BarChart3 />
-                    <span>GTM Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/templates/account-360">
-                    <Users />
-                    <span>Account 360</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/templates/pipeline-analytics">
-                    <Database />
-                    <span>Pipeline Analytics</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Integrations</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/integrations">
-                    <Database />
-                    <span>Manage Integrations</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter>
+    <Sidebar {...props}>
+      <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/settings">
-                <Settings />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/help">
-                <MessageSquare />
-                <span>Help & Support</span>
-              </Link>
+          <SidebarMenuItem className="flex justify-between items-center">
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
+              <a href="#">
+                <span className="text-base font-semibold">Lumari</span>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-
-        <div className="p-4">
-          <Button className="w-full" asChild>
-            <Link href="/generate">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Application
-            </Link>
-          </Button>
-        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <NavMain items={navItems} />
+        <NavSecondary items={secondaryItems} className="mt-auto" />
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={userDetails} />
       </SidebarFooter>
     </Sidebar>
   )
-}
+} 

@@ -168,7 +168,7 @@ Alex`,
   const handleSendEmail = async () => {
     try {
       // First send the message
-      const sendResponse = await fetch('http://localhost:3000/send_email_message', {
+      const sendResponse = await fetch('http://localhost:8000/send_email_message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +180,7 @@ Alex`,
       });
       
       // Then fetch the updated profile
-      const profileResponse = await fetch('http://localhost:3000/fetch_profile', {
+      const profileResponse = await fetch('http://localhost:8000/fetch_profile', {
         method: 'GET',
       });
       

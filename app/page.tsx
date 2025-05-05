@@ -3,10 +3,29 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Sparkles, Loader2, Zap, Check, Database, GripVertical } from "lucide-react"
+import { Send, Sparkles, Loader2, Zap, Check, Database } from "lucide-react"
 import OutreachEngine from "@/components/outreach-engine"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+// @ts-ignore
+import { motion } from "framer-motion"
+import { WelcomeCard } from "@/components/dashboard/welcome-card"
+
+// Define types for our chat messages
+interface Integration {
+  name: string;
+  category: string;
+  selected: boolean;
+}
+
+interface ChatMessage {
+  id: number;
+  sender: string;
+  content: string;
+  timestamp: string;
+  integrations?: Integration[];
+}
 
 export default function Home() {
   const [message, setMessage] = useState("")
@@ -16,7 +35,8 @@ export default function Home() {
   const [useCacheMode, setUseCacheMode] = useState(false)
   const [progress, setProgress] = useState(0)
   const [loadingMessage, setLoadingMessage] = useState("Analyzing request...")
-  const [chatMessages, setChatMessages] = useState([
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 1,
       sender: "assistant",
@@ -24,11 +44,6 @@ export default function Home() {
       timestamp: "Just now",
     },
   ])
-
-  // State for resizable panels
-  const [chatWidth, setChatWidth] = useState(33) // 33% default width
-  const [isResizing, setIsResizing] = useState(false)
-  const resizeRef = useRef(null)
 
   const generationSteps = [
     "Analyzing request...",
@@ -60,6 +75,46 @@ export default function Home() {
     "Finalizing UI elements...",
     "Preparing to render outreach engine...",
   ]
+
+  // Add this effect to clean URL when page loads
+  useEffect(() => {
+    // Check if we have app_id in URL and remove it on page load/reload
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('app_id')) {
+        url.searchParams.delete('app_id');
+        window.history.replaceState({}, '', url);
+      }
+    }
+  }, []);
+
+  // Make a one-time API request when generation starts
+  useEffect(() => {
+    if (isGenerating) {
+      // Generate a random UUID
+      const uuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+      
+      // Update the URL of the page without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.set('app_id', uuid);
+      window.history.pushState({}, '', url);
+      
+      fetch(`http://localhost:8000/generate`, {
+        method: 'POST',
+      })
+    }
+  }, [isGenerating])
+  
+  // Clean up URL when generation is complete
+  useEffect(() => {
+    if (!isGenerating && typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('app_id')) {
+        url.searchParams.delete('app_id');
+        window.history.replaceState({}, '', url);
+      }
+    }
+  }, [isGenerating])
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -149,6 +204,13 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [isGenerating, generationStep, useCacheMode, progress])
 
+  // Expand the panels when the first message is sent
+  useEffect(() => {
+    if (chatMessages.length > 1 && !isExpanded) {
+      setIsExpanded(true)
+    }
+  }, [chatMessages, isExpanded])
+
   const handleGenerate = () => {
     if (!message.trim()) return
 
@@ -163,10 +225,47 @@ export default function Home() {
       },
     ])
 
+    // Trigger animation if first message
+    if (!isExpanded) {
+      setIsExpanded(true)
+    }
+
     setIsGenerating(true)
     setGenerationStep(0)
     setProgress(0)
     setUseCacheMode(false)
+    
+    // Clear message input after sending
+    setMessage("")
+  }
+
+  const handleSendMessage = (content: string) => {
+    // Set the message from the WelcomeCard input
+    setMessage(content)
+    
+    // Add user message to chat
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        sender: "user",
+        content,
+        timestamp: "Just now",
+      },
+    ])
+
+    // Trigger animation if first message
+    if (!isExpanded) {
+      setIsExpanded(true)
+    }
+
+    setIsGenerating(true)
+    setGenerationStep(0)
+    setProgress(0)
+    setUseCacheMode(false)
+    
+    // Clear message input after sending
+    setMessage("")
   }
 
   const handleUseCache = () => {
@@ -194,235 +293,212 @@ export default function Home() {
     },
   ]
 
-  // Handle resize start
-  const handleResizeStart = (e) => {
-    e.preventDefault()
-    setIsResizing(true)
-  }
-
-  // Handle resize
-  useEffect(() => {
-    const handleResize = (e) => {
-      if (isResizing) {
-        // Calculate percentage based on mouse position
-        const containerWidth = window.innerWidth
-        const newChatWidth = (e.clientX / containerWidth) * 100
-
-        // Limit the resize range (between 20% and 80%)
-        if (newChatWidth >= 20 && newChatWidth <= 80) {
-          setChatWidth(newChatWidth)
-        }
-      }
-    }
-
-    const handleResizeEnd = () => {
-      setIsResizing(false)
-    }
-
-    if (isResizing) {
-      window.addEventListener("mousemove", handleResize)
-      window.addEventListener("mouseup", handleResizeEnd)
-    }
-
-    return () => {
-      window.removeEventListener("mousemove", handleResize)
-      window.removeEventListener("mouseup", handleResizeEnd)
-    }
-  }, [isResizing])
-
-  return (
-    <div className="flex h-screen bg-black text-white">
-      {/* Chat Interface - Resizable width */}
-      <div className="border-r border-zinc-800 flex flex-col bg-zinc-900" style={{ width: `${chatWidth}%` }}>
-        <div className="p-3 border-b border-zinc-800">
-          <h2 className="text-sm font-medium flex items-center text-zinc-400">LUMARI</h2>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
-          {chatMessages.map((message) => (
-            <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`flex gap-2 max-w-[85%] ${message.sender === "user" ? "flex-row-reverse" : ""}`}>
-                <Avatar className={`h-6 w-6 ${message.sender === "user" ? "border border-zinc-700" : ""}`}>
-                  {message.sender === "assistant" ? (
-                    <>
-                      <AvatarImage src="/assistant-avatar.png" />
-                      <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">AI</AvatarFallback>
-                    </>
-                  ) : (
-                    <>
-                      <AvatarImage src="/user-avatar.png" />
-                      <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">ME</AvatarFallback>
-                    </>
-                  )}
-                </Avatar>
-                <div>
-                  <div
-                    className={`rounded-lg p-2 text-sm ${
-                      message.sender === "user" ? "bg-white text-black" : "bg-zinc-800 border border-zinc-700"
-                    }`}
-                  >
-                    <p>{message.content}</p>
-
-                    {/* Integrations suggestion UI */}
-                    {message.integrations && (
-                      <div className="mt-2 pt-2 border-t border-zinc-700">
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          {message.integrations.map((integration, idx) => (
-                            <div
-                              key={idx}
-                              className={`flex items-center gap-2 p-2 rounded-md ${
-                                integration.selected ? "bg-zinc-700" : "bg-zinc-800"
-                              }`}
-                            >
-                              <div className="flex-shrink-0 w-6 h-6 rounded-md bg-zinc-600 flex items-center justify-center">
-                                <Database className="h-3 w-3 text-zinc-300" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium">{integration.name}</p>
-                                <p className="text-xs text-zinc-500">{integration.category}</p>
-                              </div>
-                              {integration.selected && (
-                                <div className="flex-shrink-0 h-4 w-4 rounded-sm bg-white text-black flex items-center justify-center">
-                                  <Check className="h-2.5 w-2.5" />
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-1 px-1">{message.timestamp}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {isGenerating && (
-            <div className="flex justify-start">
-              <div className="flex gap-2 max-w-[85%]">
-                <Avatar className="h-6 w-6">
+  const renderChatPanel = () => (
+    <div className="flex-1 overflow-y-auto p-3 space-y-4">
+      {chatMessages.map((message) => (
+        <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
+          <div className={`flex gap-2 max-w-[85%] ${message.sender === "user" ? "flex-row-reverse" : ""}`}>
+            <Avatar className={`h-6 w-6 ${message.sender === "user" ? "border border-zinc-700" : ""}`}>
+              {message.sender === "assistant" ? (
+                <>
                   <AvatarImage src="/assistant-avatar.png" />
                   <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">AI</AvatarFallback>
-                </Avatar>
-                <div className="w-full">
-                  <div className="rounded-lg p-3 text-sm bg-zinc-800 border border-zinc-700">
-                    {!useCacheMode ? (
-                      <div className="space-y-2">
-                        <p className="font-medium text-xs text-zinc-400">THINKING</p>
-                        <div className="space-y-1.5">
-                          {generationSteps.slice(0, generationStep + 1).map((step, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              {index === generationStep ? (
-                                <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
-                              ) : (
-                                <div className="h-3 w-3 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-                                </div>
-                              )}
-                              <p className={`text-xs ${index === generationStep ? "text-zinc-300" : "text-zinc-500"}`}>
-                                {step}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                </>
+              ) : (
+                <>
+                  <AvatarImage src="/user-avatar.png" />
+                  <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">ME</AvatarFallback>
+                </>
+              )}
+            </Avatar>
+            <div>
+              <div
+                className={`rounded-lg p-2 text-sm ${
+                  message.sender === "user" ? "bg-white text-black" : "bg-zinc-800 border border-zinc-700"
+                }`}
+              >
+                <p>{message.content}</p>
 
-                        <div className="pt-2 flex justify-end">
+                {/* Integrations suggestion UI */}
+                {message.integrations && (
+                  <div className="mt-2 pt-2 border-t border-zinc-700">
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {message.integrations.map((integration, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex items-center gap-2 p-2 rounded-md ${
+                            integration.selected ? "bg-zinc-700" : "bg-zinc-800"
+                          }`}
+                        >
+                          <div className="flex-shrink-0 w-6 h-6 rounded-md bg-zinc-600 flex items-center justify-center">
+                            <Database className="h-3 w-3 text-zinc-300" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium">{integration.name}</p>
+                            <p className="text-xs text-zinc-500">{integration.category}</p>
+                          </div>
+                          {integration.selected && (
+                            <div className="flex-shrink-0 h-4 w-4 rounded-sm bg-white text-black flex items-center justify-center">
+                              <Check className="h-2.5 w-2.5" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-zinc-500 mt-1 px-1">{message.timestamp}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {isGenerating && (
+        <div className="flex justify-start">
+          <div className="flex gap-2 max-w-[85%]">
+            <Avatar className="h-6 w-6">
+              <AvatarImage src="/assistant-avatar.png" />
+              <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">AI</AvatarFallback>
+            </Avatar>
+            <div className="w-full">
+              <div className="rounded-lg p-3 text-sm bg-zinc-800 border border-zinc-700">
+                {!useCacheMode ? (
+                  <div className="space-y-2">
+                    <p className="font-medium text-xs text-zinc-400">THINKING</p>
+                    <div className="space-y-1.5">
+                      {generationSteps.slice(0, generationStep + 1).map((step, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          {index === generationStep ? (
+                            <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
+                          ) : (
+                            <div className="h-3 w-3 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                            </div>
+                          )}
+                          <p className={`text-xs ${index === generationStep ? "text-zinc-300" : "text-zinc-500"}`}>
+                            {step}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      {/* <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-zinc-700 text-zinc-400 hover:text-white"
+                        onClick={handleUseCache}
+                      >
+                        <Zap className="h-3 w-3 mr-1 text-amber-500" /> Use Cache
+                      </Button> */}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <p className="text-xs">{loadingMessage}</p>
+                    </div>
+                    <Progress value={progress} className="h-1.5" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className={`h-screen bg-black text-white ${isExpanded ? "" : "p-4 flex justify-center items-center"}`}>
+      {isExpanded ? (
+        <motion.div
+          key="resizable-panels"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="h-full w-full"
+        >
+          <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border border-zinc-800">
+            <ResizablePanel defaultSize={33} minSize={25} maxSize={50} className="h-full">
+              <div className="flex flex-col h-full">
+                <div className="p-3 border-b border-zinc-800">
+                  <h2 className="text-sm font-medium flex items-center text-zinc-400 mx-10 mt-2">LUMARI</h2>
+                </div>
+                
+                {renderChatPanel()}
+                
+                {!showOutreachEngine && !isGenerating && (
+                  <div className="p-3 border-t border-zinc-800">
+                    <div className="space-y-3">
+                      <div className="text-xs text-zinc-500">Try one of these:</div>
+                      <div className="flex flex-col gap-2">
+                        {suggestions.map((suggestion, index) => (
                           <Button
-                            size="sm"
+                            key={index}
                             variant="outline"
-                            className="h-7 text-xs border-zinc-700 text-zinc-400 hover:text-white"
-                            onClick={handleUseCache}
+                            size="sm"
+                            className="text-xs border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 justify-start text-left h-auto py-2 whitespace-normal"
+                            onClick={() => setMessage(suggestion.prompt)}
                           >
-                            <Zap className="h-3 w-3 mr-1 text-amber-500" /> Use Cache
+                            {suggestion.label}
                           </Button>
-                        </div>
+                        ))}
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                          <p className="text-xs">{loadingMessage}</p>
-                        </div>
-                        <Progress value={progress} className="h-1.5" />
-                      </div>
-                    )}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="p-3 border-t border-zinc-800 mt-auto">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Describe the app you want to build..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="bg-zinc-800 border-zinc-700 text-white text-sm"
+                      disabled={isGenerating}
+                    />
+                    <Button
+                      size="icon"
+                      className="bg-white text-black hover:bg-zinc-200"
+                      onClick={handleGenerate}
+                      disabled={isGenerating || !message.trim()}
+                    >
+                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {!showOutreachEngine && !isGenerating && (
-          <div className="p-3 border-t border-zinc-800">
-            <div className="space-y-3">
-              <div className="text-xs text-zinc-500">Try one of these:</div>
-              <div className="flex flex-col gap-2">
-                {suggestions.map((suggestion, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 justify-start text-left h-auto py-2 whitespace-normal"
-                    onClick={() => setMessage(suggestion.prompt)}
-                  >
-                    {suggestion.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="p-3 border-t border-zinc-800">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Describe the app you want to build..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="bg-zinc-800 border-zinc-700 text-white text-sm"
-              disabled={isGenerating}
-            />
-            <Button
-              size="icon"
-              className="bg-white text-black hover:bg-zinc-200"
-              onClick={handleGenerate}
-              disabled={isGenerating || !message.trim()}
-            >
-              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Resizable handle */}
-      <div
-        ref={resizeRef}
-        className="w-1 hover:w-2 bg-zinc-800 hover:bg-zinc-600 cursor-col-resize flex items-center justify-center transition-colors"
-        onMouseDown={handleResizeStart}
-      >
-        <div className="h-8 flex items-center justify-center opacity-0 hover:opacity-100">
-          <GripVertical className="h-4 w-4 text-zinc-500" />
-        </div>
-      </div>
-
-      {/* App Dashboard - Adjusts width based on chat width */}
-      <div className="overflow-auto bg-zinc-950" style={{ width: `calc(100% - ${chatWidth}% - 1px)` }}>
-        {showOutreachEngine ? (
-          <OutreachEngine />
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-            <div className="max-w-md space-y-4">
-              <Sparkles className="h-12 w-12 text-zinc-700 mx-auto" />
-              <h2 className="text-xl font-medium">Describe your enterprise app</h2>
-              <p className="text-zinc-400 text-sm">
-                Use the chat to describe the app you want to build. You can specify features, data sources, and design
-                preferences.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            <ResizablePanel defaultSize={67} className="h-full overflow-auto">
+              {showOutreachEngine ? (
+                <OutreachEngine />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+                  <div className="max-w-md space-y-4">
+                    <Sparkles className="h-12 w-12 text-zinc-700 mx-auto" />
+                    <h2 className="text-xl font-medium">Describe your enterprise app</h2>
+                    <p className="text-zinc-400 text-sm">
+                      Use the chat to describe the app you want to build. You can specify features, data sources, and design
+                      preferences.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </motion.div>
+      ) : (
+        <WelcomeCard 
+          onSendMessage={handleSendMessage}
+          isLoading={isGenerating}
+        />
+      )}
     </div>
   )
 }
