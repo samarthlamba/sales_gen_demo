@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Sparkles, Loader2, Zap, Check, Database } from "lucide-react"
+import { Send, Sparkles, Loader2, Zap, Check, Database, Bot } from "lucide-react"
 import OutreachEngine from "@/components/outreach-engine"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
@@ -302,7 +302,9 @@ export default function Home() {
               {message.sender === "assistant" ? (
                 <>
                   <AvatarImage src="/assistant-avatar.png" />
-                  <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">AI</AvatarFallback>
+                  <AvatarFallback className="bg-zinc-800 text-zinc-400">
+                    <Bot className="h-3 w-3" />
+                  </AvatarFallback>
                 </>
               ) : (
                 <>
@@ -359,7 +361,9 @@ export default function Home() {
           <div className="flex gap-2 max-w-[85%]">
             <Avatar className="h-6 w-6">
               <AvatarImage src="/assistant-avatar.png" />
-              <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">AI</AvatarFallback>
+              <AvatarFallback className="bg-zinc-800 text-zinc-400">
+                <Bot className="h-3 w-3" />
+              </AvatarFallback>
             </Avatar>
             <div className="w-full">
               <div className="rounded-lg p-3 text-sm bg-zinc-800 border border-zinc-700">
