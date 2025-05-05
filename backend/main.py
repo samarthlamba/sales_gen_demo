@@ -8,10 +8,20 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import json
 from typing import Dict, Any, Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 subprocess.run("""figlet -f big L u m a r i | sed 's/^/\x1b[38;5;61m/'""", shell=True)
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Allows requests from your frontend
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Define credential storage path
 CREDENTIALS_FILE = "user_credentials.json"
