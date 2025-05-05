@@ -14,11 +14,15 @@ def generate_credentials():
     flow = InstalledAppFlow.from_client_secrets_file(
         CLIENT_SECRETS_FILE, 
         SCOPES,
-        redirect_uri='http://localhost:3001/'  # Note the trailing slash
+        redirect_uri='http://localhost:3001/',
     )
     
     # Run the OAuth flow to get credentials
-    credentials = flow.run_local_server(port=3001)
+    credentials = flow.run_local_server(
+        port=3001,
+        success_message='The authentication flow has completed. You may close this window.',
+        open_browser=True
+    )
     
     # Save the credentials to a file
     creds_data = {

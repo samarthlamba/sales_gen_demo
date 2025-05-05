@@ -53,3 +53,6 @@ next-env.d.ts
 
 .eslintrc.js
 
+
+client_secret.json
+user_credentials.json

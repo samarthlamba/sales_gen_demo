@@ -94,6 +94,7 @@ export default function OutreachEngine() {
   })
 
   const [messageContent, setMessageContent] = useState("")
+  const [emailSubject, setEmailSubject] = useState(`Connecting with ${currentProspect.company}`)
   const [isStarred, setIsStarred] = useState(false)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
@@ -175,7 +176,8 @@ Alex`,
         },
         body: JSON.stringify({
           recipient: currentProspect.email,
-          content: messageContent,
+          subject: emailSubject,
+          body: messageContent,
         }),
       });
       
@@ -402,7 +404,8 @@ Alex`,
                 <Input
                   placeholder="Enter subject line..."
                   className="h-7 text-xs bg-zinc-800 border-zinc-700"
-                  defaultValue={`Connecting with ${currentProspect.company}`}
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
                 />
               </div>
               <div className="flex-1 relative">
